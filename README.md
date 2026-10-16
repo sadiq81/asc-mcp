@@ -37,18 +37,30 @@ New here? Follow the [Quick Start](#quick-start). The remaining sections are ref
 
 ## Platform Support
 
-`asc-mcp` is a local `stdio` server: the MCP client starts it on the same computer. A client being available on Linux or Windows does not make this Swift server cross-platform.
+`asc-mcp` is a `stdio` server: the MCP client starts it on the same computer. It can also run remotely on Linux behind an HTTP bridge (see [Remote deployment](#remote-deployment-linux--cloud-run)).
 
 | Environment | Status | Notes |
 |---|---|---|
 | macOS 15.6+ with Xcode 26.x | **Recommended** | Release CI specifically uses GitHub's macOS 15 runner with Xcode 26.2 |
 | macOS 14.0-15.5 | Declared deployment target only | Build and runtime are unverified; a separately installed Swift 6.2+ toolchain may be needed |
-| Linux | Not supported yet | Porting work and Linux CI are not complete |
+| Linux (Swift 6.2+) | **Supported** | Built, unit-tested and MCP smoke-tested in the Portability workflow on Debian bookworm |
 | Windows | Not supported | Current source dependencies and Swift MCP `stdio` transport are not Windows-compatible |
 
 See [Apple's Xcode system requirements](https://developer.apple.com/support/xcode/) for the macOS versions supported by each Xcode release.
 
-Web and cloud sessions do not automatically inherit a local MCP configuration. Run the MCP client locally on a compatible Mac, or use a client feature that explicitly keeps execution on that Mac.
+Web and cloud sessions do not automatically inherit a local MCP configuration. Run the MCP client locally, or deploy the server remotely as described below.
+
+## Remote deployment (Linux / Cloud Run)
+
+The `Dockerfile` builds a static Linux binary and serves it over Streamable HTTP with [supergateway](https://github.com/supercorp-ai/supergateway). `deploy/cloud-run.sh` deploys it to Google Cloud Run (scales to zero, normally within the free tier), with credentials in Secret Manager:
+
+```bash
+deploy/cloud-run.sh <gcp-project-id> AuthKey_XXXX.p8 <key-id> <issuer-id>
+```
+
+It prints a connector URL containing a random secret path. Every other path returns 404. **Treat the URL like a password**: anyone who has it can use your App Store Connect key. Set `ASC_MCP_ARGS="--read-only"` or `--workers ...` before deploying to limit what the URL can do.
+
+On a remote host, upload tools can only read files that exist on that host (`ASC_MCP_UPLOAD_DIRS=/tmp/uploads` by default), so screenshot and build-file uploads are best done from a local install.
 
 ## Quick Start
 

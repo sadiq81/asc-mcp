@@ -36,21 +36,6 @@ jobs:
           set -o pipefail
           swift build -c release --disable-automatic-resolution 2>&1 | tee build.log
 
-      - name: Full suite, serial (diagnostic)
-        continue-on-error: true
-        shell: bash
-        run: |
-          set +e
-          swift test --disable-automatic-resolution --no-parallel > serial-test.log 2>&1
-          code=$?
-          tail -n 80 serial-test.log
-          echo "::notice title=serial suite::exit $code; $(grep -E 'Test run with|tests? (passed|failed)' serial-test.log | tail -2 | tr '\n' ' ')"
-          if [ $code -ne 0 ]; then
-            bt="$(awk '/crashed:/{c=1} c&&/ at \/__w/{print; n++} n>=25{exit}' serial-test.log | cut -c1-260)"
-            last="$(grep -E '◇ (Test|Suite) .* started|✔ Suite' serial-test.log | tail -12)"
-            echo "::error title=serial crash::$(printf '%s\n--- last started:\n%s' "$bt" "$last" | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')"
-          fi
-
       - name: Run tests
         shell: bash
         run: |
