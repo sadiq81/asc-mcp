@@ -596,7 +596,13 @@ struct ASCOperationManifestBundle: Sendable, Equatable {
 
     private static func bundledManifestDirectory() -> URL? {
         let fileManager = FileManager.default
+        #if canImport(Darwin)
         let loadedBundles = Bundle.allBundles + [Bundle.main]
+        #else
+        // `Bundle.allBundles` is not memory-safe in swift-corelibs-foundation (it crashes or
+        // corrupts the heap). The executable-relative search below finds the resources on Linux.
+        let loadedBundles = [Bundle.main]
+        #endif
         var roots = loadedBundles.flatMap { bundle in
             [bundle.bundleURL, bundle.resourceURL].compactMap { $0 }
         }
