@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [exe-crypto, exe-crypto-mcp, lib-crypto-mcp]
+        variant: [exe-crypto-mcp-filehandle, exe-crypto-mcp]
     steps:
       - name: Build and test probe package
         shell: bash
@@ -28,12 +28,12 @@ jobs:
           mkdir -p probe/Sources/probe probe/Tests/probeTests && cd probe
           v='${{ matrix.variant }}'
           mcpdep=''; mcpprod=''; mcpimport=''
-          if [[ $v == *mcp ]]; then
+          if [[ $v == *mcp* ]]; then
             mcpdep='.package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", exact: "0.12.0"),'
             mcpprod='.product(name: "MCP", package: "swift-sdk"),'
             mcpimport='import MCP'
           fi
-          kind='executableTarget'; [[ $v == lib* ]] && kind='target'
+          kind='executableTarget'
           cat > Package.swift <<EOF
           // swift-tools-version: 6.2
           import PackageDescription
@@ -57,6 +57,16 @@ jobs:
               public static func pem() -> String { P256.Signing.PrivateKey().pemRepresentation }
           }
           EOF
+          if [[ $v == *filehandle ]]; then
+            cat >> Sources/probe/Probe.swift <<'EOF2'
+          extension FileHandle: @retroactive TextOutputStream {
+              public func write(_ string: String) {
+                  guard let data = string.data(using: .utf8) else { return }
+                  self.write(data)
+              }
+          }
+          EOF2
+          fi
           if [[ $kind == executableTarget ]]; then
             printf '@main struct Main { static func main() { print(Probe.pem().count) } }\n' > Sources/probe/Main.swift
           fi

@@ -36,6 +36,15 @@ jobs:
           set -o pipefail
           swift build -c release --disable-automatic-resolution 2>&1 | tee build.log
 
+      - name: JWT tests in isolation
+        id: jwt_tests
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          swift test --disable-automatic-resolution --filter JWTServiceTests 2>&1 | tee jwt-test.log
+          echo "::notice title=JWT tests alone::exit ${PIPESTATUS[0]}"
+
       - name: Run tests
         shell: bash
         run: |
