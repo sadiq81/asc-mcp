@@ -596,7 +596,13 @@ struct ASCOperationManifestBundle: Sendable, Equatable {
 
     private static func bundledManifestDirectory() -> URL? {
         let fileManager = FileManager.default
+        #if canImport(Darwin)
         let loadedBundles = Bundle.allBundles + [Bundle.main]
+        #else
+        // `Bundle.allBundles` is not memory-safe in swift-corelibs-foundation (it crashes or
+        // corrupts the heap). The executable-relative search below finds the resources on Linux.
+        let loadedBundles = [Bundle.main]
+        #endif
         var roots = loadedBundles.flatMap { bundle in
             [bundle.bundleURL, bundle.resourceURL].compactMap { $0 }
         }
@@ -628,10 +634,16 @@ struct ASCOperationManifestBundle: Sendable, Equatable {
                 "asc-mcp_asc-mcp.bundle",
                 isDirectory: true
             )
+            // SwiftPM names the resource directory `.bundle` on Apple platforms and `.resources` on Linux.
+            let linuxResourceDirectory = root.appendingPathComponent(
+                "asc-mcp_asc-mcp.resources",
+                isDirectory: true
+            )
             let candidates = [
                 root.appendingPathComponent("OperationManifest", isDirectory: true),
                 resourceBundle.appendingPathComponent("OperationManifest", isDirectory: true),
-                resourceBundle.appendingPathComponent("Contents/Resources/OperationManifest", isDirectory: true)
+                resourceBundle.appendingPathComponent("Contents/Resources/OperationManifest", isDirectory: true),
+                linuxResourceDirectory.appendingPathComponent("OperationManifest", isDirectory: true)
             ]
             for candidate in candidates {
                 let path = candidate.standardizedFileURL.path

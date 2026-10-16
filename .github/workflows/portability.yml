@@ -1,0 +1,172 @@
+name: Portability
+
+# Builds and tests on Linux and macOS, and smoke-tests the remote Docker image.
+on:
+  push:
+    branches: [main, linux-support]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portability-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Linux build, tests & MCP smoke
+    runs-on: ubuntu-latest
+    container: swift:6.2-bookworm
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Install tools
+        run: apt-get update && apt-get install -y --no-install-recommends python3 zlib1g-dev
+
+      - name: Build release
+        id: build
+        shell: bash
+        run: |
+          set -o pipefail
+          swift build -c release --disable-automatic-resolution 2>&1 | tee build.log
+
+      - name: Run tests
+        shell: bash
+        run: |
+          set -o pipefail
+          swift test --disable-automatic-resolution 2>&1 | tee test.log
+
+      - name: MCP stdio smoke
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(awk -F'"' '/static let current =/ { print $2 }' Sources/asc-mcp/Core/ServerVersion.swift)"
+          python3 Scripts/ci/mcp_stdio_smoke.py \
+            --binary "$PWD/.build/release/asc-mcp" \
+            --expected-version "$version" \
+            --expected-tool-count 502 \
+            --expected-prefix xcode_cloud_ \
+            --expected-prefix-count 42 \
+            --error-tool xcode_cloud_workflows_create
+
+      - name: JWT signing probe
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: python3 Scripts/ci/jwt_probe.py "$PWD/.build/release/asc-mcp"
+
+      # Surfaces compiler errors and failed tests as annotations on the run.
+      - name: Annotate failures
+        if: failure()
+        shell: bash
+        run: |
+          set +e +o pipefail
+          for f in build.log test.log; do
+            [ -f "$f" ] || continue
+            grep -E ': error: ' "$f" | sort -u | head -4 | while IFS= read -r line; do
+              file="${line%%:*}"; rest="${line#*:}"; ln="${rest%%:*}"
+              echo "::error file=${file#$PWD/},line=${ln}::${line##*error: }"
+            done
+            grep -E 'Fatal error|fatal error|signal code' "$f" | grep -v ': error: ' | head -4 \
+              | while IFS= read -r line; do echo "::error title=$f::$line"; done
+          done
+          # Crash backtraces: one multi-line annotation (GitHub caps annotation counts per step).
+          if [ -f test.log ]; then
+            bt="$(awk '/crashed:/{c=1} c{print; n++} n>=70{exit}' test.log | cut -c1-220)"
+            [ -n "$bt" ] && echo "::error title=backtrace::$(printf '%s' "$bt" | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')"
+            fails="$(grep -E '✘ Test .*(recorded an issue|failed)' test.log | cut -c1-300 | head -60)"
+            [ -n "$fails" ] && echo "::error title=failed tests::$(printf '%s' "$fails" | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')"
+          fi
+          exit 0
+
+  macos:
+    name: macOS build & tests (unchanged behavior)
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app
+
+      - name: Build release without warnings
+        shell: bash
+        run: |
+          set -o pipefail
+          swift build -c release --disable-automatic-resolution 2>&1 | tee build.log
+          if grep -n 'warning:' build.log; then
+            grep 'warning:' build.log | head -20 | sed 's/^/::error::/'
+            exit 1
+          fi
+
+      - name: Run tests
+        shell: bash
+        run: |
+          set -o pipefail
+          swift test --disable-automatic-resolution 2>&1 | tee test.log
+
+      - name: Annotate failures
+        if: failure()
+        shell: bash
+        run: |
+          for f in build.log test.log; do
+            [ -f "$f" ] && grep -E 'error:|✘' "$f" | head -40 | sed 's/^/::error::/' || true
+          done
+
+  docker:
+    name: Docker image HTTP smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Build image
+        run: docker build -t asc-mcp-remote .
+
+      - name: Serve over HTTP and list tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Throwaway key: listing tools never calls Apple, so it only needs to parse.
+          openssl ecparam -name prime256v1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt > key.p8
+          docker run -d --name mcp -p 8080:8080 \
+            -e MCP_PATH=mcp-smoke -e ASC_KEY_ID=SMOKE -e ASC_ISSUER_ID=00000000-0000-0000-0000-000000000000 \
+            -e ASC_PRIVATE_KEY="$(cat key.p8)" asc-mcp-remote
+          for i in $(seq 1 30); do curl -s -o /dev/null localhost:8080 && break; sleep 1; done
+
+          rpc() {
+            curl -sS -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+              "localhost:8080/$1" -d "$2"
+          }
+          rpc mcp-smoke '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"1"}}}' > init.txt
+          rpc mcp-smoke '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' > tools.txt
+          count="$(grep -o '"inputSchema"' tools.txt | wc -l)"
+          echo "::notice::Remote image served $count tools"
+          test "$count" -eq 502
+
+          status="$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' localhost:8080/mcp -d '{}')"
+          echo "::notice::Wrong path returned HTTP $status"
+          test "$status" = 404
+
+      - name: JWT signing probe on the shipped binary
+        run: |
+          docker create --name extract asc-mcp-remote >/dev/null
+          docker cp extract:/app ./shipped
+          python3 Scripts/ci/jwt_probe.py "$PWD/shipped/asc-mcp"
+
+      - name: Annotate failures
+        if: failure()
+        run: |
+          docker logs mcp 2>&1 | tail -30 | sed 's/^/::error::/' || true
+          head -c 2000 init.txt tools.txt 2>/dev/null | sed 's/^/::error::/' || true

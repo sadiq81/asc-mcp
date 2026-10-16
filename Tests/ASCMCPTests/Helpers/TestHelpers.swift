@@ -1,6 +1,13 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import Testing
+#if canImport(CryptoKit)
 import CryptoKit
+#else
+import Crypto
+#endif
 import MCP
 @testable import asc_mcp
 

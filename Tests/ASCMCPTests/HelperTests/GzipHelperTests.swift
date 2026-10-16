@@ -1,4 +1,8 @@
+#if canImport(Compression)
 import Compression
+#else
+import CZlib
+#endif
 import Foundation
 import Testing
 @testable import asc_mcp
@@ -218,6 +222,7 @@ struct GzipHelperTests {
         let destinationBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: destinationSize)
         defer { destinationBuffer.deallocate() }
 
+        #if canImport(Compression)
         let compressedSize = data.withUnsafeBytes { source -> Int in
             guard let sourceBaseAddress = source.baseAddress else { return 0 }
             return compression_encode_buffer(
@@ -229,6 +234,9 @@ struct GzipHelperTests {
                 COMPRESSION_ZLIB
             )
         }
+        #else
+        let compressedSize = rawDeflate(data, into: destinationBuffer, capacity: destinationSize)
+        #endif
         guard compressedSize > 0 else {
             throw GzipTestError.compressionFailed
         }
@@ -252,6 +260,29 @@ struct GzipHelperTests {
         result.append(contentsOf: compressed.dropFirst(10))
         return result
     }
+
+    #if !canImport(Compression)
+    /// Raw DEFLATE (no zlib header), matching Apple's COMPRESSION_ZLIB output format.
+    /// - Returns: Number of compressed bytes written, or 0 on failure.
+    private func rawDeflate(_ data: Data, into destination: UnsafeMutablePointer<UInt8>, capacity: Int) -> Int {
+        var stream = z_stream()
+        guard deflateInit2_(
+            &stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY,
+            zlibVersion(), Int32(MemoryLayout<z_stream>.size)
+        ) == Z_OK else { return 0 }
+        defer { _ = deflateEnd(&stream) }
+
+        var input = [UInt8](data)
+        return input.withUnsafeMutableBufferPointer { source in
+            stream.next_in = source.baseAddress
+            stream.avail_in = uInt(source.count)
+            stream.next_out = destination
+            stream.avail_out = uInt(capacity)
+            guard deflate(&stream, Z_FINISH) == Z_STREAM_END else { return 0 }
+            return Int(stream.total_out)
+        }
+    }
+    #endif
 
     private func crc32(_ data: Data) -> UInt32 {
         var crc = UInt32.max
