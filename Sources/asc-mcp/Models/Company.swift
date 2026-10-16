@@ -63,8 +63,30 @@ public struct CompaniesConfig: Codable, Sendable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         defaultURL = try container.decodeIfPresent(String.self, forKey: .defaultURL)
-            ?? "https://api.appstoreconnect.apple.com"
+            ?? Self.appleAPIURL
+        guard Self.isAllowedBaseURL(defaultURL) else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .defaultURL,
+                in: container,
+                debugDescription: "defaultURL must be \(Self.appleAPIURL); signed API tokens are only sent to Apple"
+            )
+        }
         companies = try container.decode([Company].self, forKey: .companies)
+    }
+
+    static let appleAPIURL = "https://api.appstoreconnect.apple.com"
+
+    /// Only Apple's API host may receive signed JWTs, so a tampered config file cannot redirect them.
+    static func isAllowedBaseURL(_ value: String) -> Bool {
+        guard let components = URLComponents(string: value) else { return false }
+        return components.scheme == "https"
+            && components.host == "api.appstoreconnect.apple.com"
+            && components.port == nil
+            && components.user == nil
+            && components.password == nil
+            && components.path.isEmpty
+            && components.query == nil
+            && components.fragment == nil
     }
 
     public init(companies: [Company], defaultURL: String = "https://api.appstoreconnect.apple.com") {

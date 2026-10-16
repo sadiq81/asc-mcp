@@ -290,10 +290,7 @@ private func makeManager(
     companies: [Company],
     transport: BlockingHTTPTransport
 ) async throws -> ManagerContext {
-    let companiesManager = try TestFactory.makeCompaniesManager(
-        companies: companies,
-        defaultURL: "https://api.example.test"
-    )
+    let companiesManager = try TestFactory.makeCompaniesManager(companies: companies)
     let initialCompany = try await companiesManager.getCurrentCompany()
     let jwtService = try JWTService(company: initialCompany)
     let httpClient = await HTTPClient(

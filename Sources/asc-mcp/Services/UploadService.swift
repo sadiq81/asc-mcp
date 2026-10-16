@@ -96,7 +96,7 @@ public actor UploadService {
 
     func prepareSnapshot(filePath: String) throws -> UploadFileSnapshot {
         let sourceURL = URL(fileURLWithPath: filePath)
-        let snapshotURL = try createSnapshot(of: sourceURL)
+        let snapshotURL = try createSnapshot(of: try UploadPathPolicy.validated(filePath))
         do {
             return UploadFileSnapshot(
                 url: snapshotURL,
