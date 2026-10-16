@@ -7,6 +7,12 @@ import Testing
 
 @Suite("HTTP Transport Redirect Safety Tests")
 struct HTTPTransportRedirectSafetyTests {
+    #if canImport(Darwin)
+    static let urlProtocolRedirectsSupported = true
+    #else
+    static let urlProtocolRedirectsSupported = false
+    #endif
+
     @Test(
         "App Store Connect transport refuses every redirect and authorization forwarding",
         arguments: ["GET", "POST", "PUT", "PATCH", "DELETE"]
@@ -52,7 +58,14 @@ struct HTTPTransportRedirectSafetyTests {
         #expect(result.forwardedRequests.isEmpty)
     }
 
-    @Test("production URLSession transport returns the original redirect without replay")
+    // swift-corelibs-foundation does not support redirects reported by a custom URLProtocol
+    // (`wasRedirectedTo` hits a fatalError there), so this end-to-end mock only runs on Apple
+    // platforms. On Linux, real HTTP redirects reach the same session delegate, whose
+    // refusal logic is covered by the test above.
+    @Test(
+        "production URLSession transport returns the original redirect without replay",
+        .enabled(if: Self.urlProtocolRedirectsSupported)
+    )
     func productionTransportWiresRedirectDelegate() async throws {
         ProductionRedirectURLProtocol.recorder.reset()
         defer { ProductionRedirectURLProtocol.recorder.reset() }
