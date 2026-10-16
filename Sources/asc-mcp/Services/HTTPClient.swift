@@ -46,7 +46,10 @@ public actor HTTPClient {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30
         config.timeoutIntervalForResource = 60
+        #if !os(Linux)
+        // Not available in swift-corelibs-foundation; Linux requests simply fail fast and retry.
         config.waitsForConnectivity = true
+        #endif
         self.transport = transport ?? URLSessionTransport(configuration: config)
     }
 

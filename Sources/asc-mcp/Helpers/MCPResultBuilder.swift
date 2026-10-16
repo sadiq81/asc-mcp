@@ -436,6 +436,17 @@ enum MCPValueSanitizer {
 }
 
 enum MCPValue {
+    /// Reports whether an `NSNumber` wraps a Boolean (as produced by `JSONSerialization` for `true`/`false`).
+    /// - Returns: `true` for Boolean-backed numbers.
+    static func isBoolean(_ value: NSNumber) -> Bool {
+        #if canImport(Darwin)
+        return CFGetTypeID(value) == CFBooleanGetTypeID()
+        #else
+        // swift-corelibs-foundation has no CFBoolean type ID; Booleans use the "c" (char) type encoding.
+        return String(cString: value.objCType) == "c"
+        #endif
+    }
+
     static func fromAny(_ any: Any) throws -> Value {
         switch any {
         case let value as Value:
@@ -491,7 +502,7 @@ enum MCPValue {
         case let value as Decimal:
             return .string(NSDecimalNumber(decimal: value).stringValue)
         case let value as NSNumber:
-            if CFGetTypeID(value) == CFBooleanGetTypeID() {
+            if Self.isBoolean(value) {
                 return .bool(value.boolValue)
             }
             let double = value.doubleValue
