@@ -204,6 +204,8 @@ struct AppsCreateTests {
     }
 
     private func jsonObject(_ data: Data?) throws -> [String: Any] {
-        try #require(try JSONSerialization.jsonObject(with: try #require(data)) as? [String: Any])
+        let body = try #require(data)
+        let object = try JSONSerialization.jsonObject(with: body) as? [String: Any]
+        return try #require(object)
     }
 }
