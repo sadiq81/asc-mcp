@@ -30,6 +30,7 @@ jobs:
         run: apt-get update && apt-get install -y --no-install-recommends python3 zlib1g-dev
 
       - name: Build release
+        id: build
         shell: bash
         run: |
           set -o pipefail
@@ -42,6 +43,7 @@ jobs:
           swift test --disable-automatic-resolution 2>&1 | tee test.log
 
       - name: MCP stdio smoke
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -59,14 +61,18 @@ jobs:
         if: failure()
         shell: bash
         run: |
+          set +e +o pipefail
           for f in build.log test.log; do
             [ -f "$f" ] || continue
-            grep -E ': error: ' "$f" | sort -u | head -40 | while IFS= read -r line; do
+            grep -E ': error: ' "$f" | sort -u | head -30 | while IFS= read -r line; do
               file="${line%%:*}"; rest="${line#*:}"; ln="${rest%%:*}"
               echo "::error file=${file#$PWD/},line=${ln}::${line##*error: }"
             done
-            grep -E '✘|error: ' "$f" | grep -v ': error: ' | head -40 | sed 's/^/::error::/' || true
+            grep -E '✘|Fatal error|fatal error|Crash|signal|failed|FAIL' "$f" | grep -v ': error: ' | head -40 \
+              | while IFS= read -r line; do echo "::error title=$f::$line"; done
           done
+          [ -f test.log ] && tail -n 25 test.log | while IFS= read -r line; do echo "::warning title=test.log tail::$line"; done
+          exit 0
 
   macos:
     name: macOS build & tests (unchanged behavior)
