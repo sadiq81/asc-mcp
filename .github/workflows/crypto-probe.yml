@@ -1,0 +1,58 @@
+name: Crypto probe (temporary)
+
+# Narrows down a Linux crash in swift-crypto P-256 key serialization.
+on:
+  push:
+    branches: [linux-support]
+    paths: ['.github/workflows/crypto-probe.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: ${{ matrix.image }} / swift-crypto ${{ matrix.crypto }} / ${{ matrix.config }}
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['swift:6.2-bookworm', 'swift:6.1-bookworm']
+        crypto: ['5.0.1', '4.5.2', '3.15.1']
+        config: [debug, release]
+    steps:
+      - name: Build and run probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p probe/Sources/probe && cd probe
+          cat > Package.swift <<EOF
+          // swift-tools-version: 5.9
+          import PackageDescription
+          let package = Package(
+              name: "probe",
+              dependencies: [.package(url: "https://github.com/apple/swift-crypto.git", exact: "${{ matrix.crypto }}")],
+              targets: [.executableTarget(name: "probe", dependencies: [.product(name: "Crypto", package: "swift-crypto")])]
+          )
+          EOF
+          cat > Sources/probe/main.swift <<'EOF'
+          import Crypto
+          import Foundation
+          let key = P256.Signing.PrivateKey()
+          let pem = key.pemRepresentation
+          let restored = try P256.Signing.PrivateKey(pemRepresentation: pem)
+          let signature = try restored.signature(for: Data("probe".utf8))
+          print("pem \(pem.count) chars, signature \(signature.rawRepresentation.count) bytes")
+          EOF
+          swift build -c ${{ matrix.config }} 2>&1 | tail -3
+          set +e
+          out="$(swift run -c ${{ matrix.config }} --skip-build probe 2>&1)"
+          code=$?
+          echo "$out" | tail -40
+          if [ $code -ne 0 ]; then
+            echo "::error title=probe crashed::exit $code"
+            exit 1
+          fi
+          echo "::notice title=probe ok::$out"
