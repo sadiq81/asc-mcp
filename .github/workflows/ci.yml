@@ -350,7 +350,7 @@ jobs:
           python3 Scripts/ci/mcp_stdio_smoke.py \
             --binary "$HOME/.mint/bin/asc-mcp" \
             --expected-version "$version" \
-            --expected-tool-count 502 \
+            --expected-tool-count 503 \
             --expected-prefix xcode_cloud_ \
             --expected-prefix-count 42 \
             --error-tool xcode_cloud_workflows_create \

@@ -4,11 +4,22 @@ import MCP
 /// Manages apps in App Store Connect
 public final class AppsWorker: Sendable {
     let httpClient: HTTPClient
-    
+    /// Builds the App Store Connect web client used by `apps_create`, or `nil` when no session is configured.
+    let makeWebClient: @Sendable () throws -> AppleWebClient?
+
     public init(
         client: HTTPClient
     ) {
         self.httpClient = client
+        self.makeWebClient = {
+            try AppleWebSession.fromEnvironment().map { AppleWebClient(session: $0) }
+        }
+    }
+
+    /// Creates a worker with an explicit web client factory (used by tests).
+    init(client: HTTPClient, makeWebClient: @escaping @Sendable () throws -> AppleWebClient?) {
+        self.httpClient = client
+        self.makeWebClient = makeWebClient
     }
     
     /// Get list of available tools
@@ -23,7 +34,8 @@ public final class AppsWorker: Sendable {
             updateMetadataTool(),
             createLocalizationTool(),
             deleteLocalizationTool(),
-            listLocalizationsTool()
+            listLocalizationsTool(),
+            createAppTool()
         ]
     }
     
@@ -50,6 +62,8 @@ public final class AppsWorker: Sendable {
             return try await self.deleteLocalization(params)
         case "apps_list_localizations":
             return try await self.listLocalizations(params)
+        case "apps_create":
+            return try await self.createApp(params)
         default:
             throw MCPError.methodNotFound("Unknown tool")
         }
