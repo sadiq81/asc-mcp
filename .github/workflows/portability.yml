@@ -71,6 +71,9 @@ jobs:
             grep -E '✘|Fatal error|fatal error|Crash|signal|failed|FAIL' "$f" | grep -v ': error: ' | head -40 \
               | while IFS= read -r line; do echo "::error title=$f::$line"; done
           done
+          # Crash backtraces: the frames printed by the Swift runtime after "Crash".
+          [ -f test.log ] && awk '/\*\*\* (Signal|Program crashed)|Crash/{c=1} c&&/^[[:space:]]*[0-9]+ .* in /{print; n++} n>=45{exit}' test.log \
+            | while IFS= read -r line; do echo "::error title=backtrace::$line"; done
           [ -f test.log ] && tail -n 25 test.log | while IFS= read -r line; do echo "::warning title=test.log tail::$line"; done
           exit 0
 
