@@ -18,7 +18,7 @@
 
 ## Overview
 
-**asc-mcp** is a Swift-based MCP server that connects a local macOS MCP client to the [App Store Connect API](https://developer.apple.com/documentation/appstoreconnectapi). It exposes **502 tools** across 33 App Store tool domains + 2 core domains, enabling you to automate iOS and macOS release workflows through natural language.
+**asc-mcp** is a Swift-based MCP server that connects a local macOS MCP client to the [App Store Connect API](https://developer.apple.com/documentation/appstoreconnectapi). It exposes **503 tools** across 33 App Store tool domains + 2 core domains, enabling you to automate iOS and macOS release workflows through natural language.
 
 Configuration examples are included for Codex, Claude Code, Claude Desktop, Gemini CLI, VS Code with GitHub Copilot, Continue, Cursor, and Devin Desktop (formerly Windsurf). Client configuration is documented; release CI verifies installation, MCP initialization, and tool discovery on macOS rather than launching every third-party client.
 
@@ -61,6 +61,16 @@ deploy/cloud-run.sh <gcp-project-id> AuthKey_XXXX.p8 <key-id> <issuer-id>
 It prints a connector URL containing a random secret path. Every other path returns 404. **Treat the URL like a password**: anyone who has it can use your App Store Connect key. Set `ASC_MCP_ARGS="--read-only"` or `--workers ...` before deploying to limit what the URL can do.
 
 On a remote host, upload tools can only read files that exist on that host (`ASC_MCP_UPLOAD_DIRS=/tmp/uploads` by default), so screenshot and build-file uploads are best done from a local install.
+
+## Creating apps
+
+Apple's API keys cannot create app records (`POST /v1/apps` is rejected for every role), so `apps_create` uses an App Store Connect **web session**, the same mechanism as fastlane `produce`:
+
+1. On a computer where you can approve 2FA, run `fastlane spaceauth -u you@example.com` and copy the printed session.
+2. Give it to the server as `FASTLANE_SESSION` (locally in your MCP config, or `FASTLANE_SESSION='…' deploy/cloud-run.sh …` for Cloud Run). If your Apple ID belongs to several teams, also set `FASTLANE_ITC_TEAM_ID`.
+3. Register the bundle ID first (`provisioning_create_bundle_id`), then call `apps_create` with `name`, `bundle_id`, `sku`, `primary_locale` and `confirm_bundle_id`.
+
+Apple expires the session after about a month; `apps_create` then says so, and you repeat steps 1–2. Everything else keeps using the API key. The session is a full Apple ID login, so store it as carefully as the `.p8` key. This uses an undocumented Apple endpoint and may break without notice.
 
 ## Quick Start
 
@@ -492,16 +502,16 @@ You can also disable individual tools in the client. Server-side worker filterin
 
 ## Worker Filtering
 
-The server exposes **502 tools** across 33 App Store tool domains + 2 core domains. Some MCP clients impose a tool limit; Cascade in Devin Desktop currently allows 100 active tools. Use the 35 `--workers` filter keys to enable only the workers you need:
+The server exposes **503 tools** across 33 App Store tool domains + 2 core domains. Some MCP clients impose a tool limit; Cascade in Devin Desktop currently allows 100 active tools. Use the 35 `--workers` filter keys to enable only the workers you need:
 
 ```bash
 # Only load apps, builds, and version lifecycle tools
 asc-mcp --workers apps,builds,versions
 
-# App Store release preparation subset (99 tools, including always-on and build sub-workers)
+# App Store release preparation subset (100 tools, including always-on and build sub-workers)
 asc-mcp --workers apps,accessibility,builds,export_compliance,versions,app_info,screenshots
 
-# TestFlight review helpers can be loaded separately (49 tools)
+# TestFlight review helpers can be loaded separately (50 tools)
 asc-mcp --workers apps,builds,beta_app,pre_release
 
 # Monetization focus
@@ -559,7 +569,7 @@ The older `openapi-coverage` command remains available for the high-level domain
 |--------|--------|-------|-------------|
 | `company` | `company_` | 3 | Multi-account management |
 | `auth` | `auth_` | 4 | JWT token tools |
-| `apps` | `apps_` | 10 | App listing, metadata, localizations, search keyword IDs |
+| `apps` | `apps_` | 11 | App creation, listing, metadata, localizations, search keyword IDs |
 | `accessibility` | `accessibility_` | 6 | App Store accessibility declarations |
 | `webhooks` | `webhooks_` | 11 | Webhook notifications, delivery diagnostics, and receiver helpers |
 | `xcode_cloud` | `xcode_cloud_` | 42 | Xcode Cloud products, workflow management, build runs, artifacts, issues, test results, and SCM |
@@ -599,12 +609,12 @@ When an MCP client eagerly loads every tool definition, the approximate schema f
 
 | Configuration | Tools | ~Tokens |
 |---|---:|---:|
-| All workers (default) | 502 | **~60,000** |
-| Release workflow: `apps,builds,export_compliance,versions,reviews` | ~72 | ~8,900 |
-| Monetization: `apps,iap,subscriptions,pricing` | 184 | ~21,100 |
-| TestFlight: `apps,builds,beta_groups,beta_testers` | ~63 | ~7,100 |
-| Marketing: `apps,screenshots,custom_pages,ppo,promoted` | ~78 | ~8,800 |
-| `--workers apps` | 17 | ~2,100 |
+| All workers (default) | 503 | **~60,000** |
+| Release workflow: `apps,builds,export_compliance,versions,reviews` | ~73 | ~8,900 |
+| Monetization: `apps,iap,subscriptions,pricing` | 185 | ~21,100 |
+| TestFlight: `apps,builds,beta_groups,beta_testers` | ~64 | ~7,100 |
+| Marketing: `apps,screenshots,custom_pages,ppo,promoted` | ~79 | ~8,800 |
+| `--workers apps` | 18 | ~2,100 |
 
 **Heaviest workers:** Subscriptions (99 tools), InAppPurchases (59 tools), Xcode Cloud (42 tools), Screenshots (19 tools), Provisioning (17 tools).
 
@@ -612,7 +622,7 @@ Exact cost depends on the MCP host's serialization, tokenizer, and tool-discover
 
 ## Available Tools
 
-**502 tools** organized across 33 App Store tool domains + 2 core domains (use the 35 `--workers` filter keys — see [Worker Filtering](#worker-filtering)):
+**503 tools** organized across 33 App Store tool domains + 2 core domains (use the 35 `--workers` filter keys — see [Worker Filtering](#worker-filtering)):
 
 <details>
 <summary><strong>Company Management</strong> — 3 tools</summary>
@@ -638,7 +648,7 @@ Exact cost depends on the MCP host's serialization, tokenizer, and tool-discover
 </details>
 
 <details>
-<summary><strong>Apps Management</strong> — 10 tools</summary>
+<summary><strong>Apps Management</strong> — 11 tools</summary>
 
 | Tool | Description |
 |------|-------------|
@@ -652,6 +662,7 @@ Exact cost depends on the MCP host's serialization, tokenizer, and tool-discover
 | `apps_list_localizations` | List localizations with content status |
 | `apps_create_localization` | Create a new localization for a version |
 | `apps_delete_localization` | Delete a localization from a version |
+| `apps_create` | Create a new app record with its first version (needs an Apple ID web session, see [Creating apps](#creating-apps)) |
 
 </details>
 

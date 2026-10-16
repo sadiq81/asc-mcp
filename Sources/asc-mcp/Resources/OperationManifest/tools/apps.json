@@ -2,6 +2,33 @@
   "workerKey": "apps",
   "tools": [
     {
+      "tool": "apps_create",
+      "kind": "local",
+      "status": "partial",
+      "effect": "write",
+      "implementationState": "asBuilt",
+      "operations": [],
+      "fields": [
+        { "toolField": "name", "sourceKind": "local", "localRole": "appInfoLocalizations name in the App Store Connect web request" },
+        { "toolField": "bundle_id", "sourceKind": "local", "localRole": "apps bundleId attribute; must already be registered" },
+        { "toolField": "sku", "sourceKind": "local", "localRole": "apps sku attribute" },
+        { "toolField": "primary_locale", "sourceKind": "local", "localRole": "apps primaryLocale and the locale of the included localizations" },
+        { "toolField": "platforms", "sourceKind": "local", "localRole": "one included appStoreVersions resource per platform (default IOS)" },
+        { "toolField": "version_string", "sourceKind": "local", "localRole": "versionString of each included appStoreVersions resource (default 1.0)" },
+        { "toolField": "company_name", "sourceKind": "local", "localRole": "apps companyName attribute, only for the first app on an account" },
+        { "toolField": "confirm_bundle_id", "sourceKind": "local", "localRole": "confirmation that must equal bundle_id before the permanent create is sent" }
+      ],
+      "response": {
+        "mode": "local",
+        "sources": [],
+        "fields": [
+          { "outputField": "success", "localRole": "app record created" },
+          { "outputField": "app", "localRole": "id, name, bundleId, sku, primaryLocale, platforms and versionString of the created app" }
+        ]
+      },
+      "note": "Apple's public API rejects POST /v1/apps for every API key, so this tool calls App Store Connect's web endpoint (POST https://appstoreconnect.apple.com/iris/v1/apps) with an Apple ID session from FASTLANE_SESSION, exactly as fastlane produce does, after an optional team switch (POST /olympus/v1/session, FASTLANE_ITC_TEAM_ID). It is not covered by the OpenAPI contract and may change without notice. Requests are pinned to appstoreconnect.apple.com and never follow redirects."
+    },
+    {
       "tool": "apps_create_localization",
       "kind": "direct",
       "status": "partial",

@@ -20,7 +20,7 @@ struct ToolMetadataPolicyTests {
     func allToolsReceiveAnnotationsAndMeta() async throws {
         let tools = try await TestFactory.collectAllWorkerTools().map(ToolMetadataPolicy.apply)
 
-        #expect(tools.count == 502)
+        #expect(tools.count == 503)
         for tool in tools {
             #expect(tool.annotations.isEmpty == false)
             #expect(tool.annotations.openWorldHint != nil)
@@ -41,8 +41,8 @@ struct ToolMetadataPolicyTests {
         let catalog = try await TestFactory.collectAllWorkerTools()
         let tools = Dictionary(uniqueKeysWithValues: catalog.map { ($0.name, ToolMetadataPolicy.apply(to: $0)) })
 
-        #expect(manifest.tools.count == 502)
-        #expect(tools.count == 502)
+        #expect(manifest.tools.count == 503)
+        #expect(tools.count == 503)
         for rawTool in catalog {
             let effectiveReadOnly = ToolMetadataPolicy.apply(to: rawTool).annotations.readOnlyHint
             #expect(
@@ -62,7 +62,12 @@ struct ToolMetadataPolicyTests {
                 #expect(tool.annotations.destructiveHint == true, "Expected destructive metadata for \(mapping.tool)")
             }
             if mapping.kind == .local {
-                #expect(tool.annotations.openWorldHint == false, "Expected closed-world metadata for \(mapping.tool)")
+                // Web-session tools have no OpenAPI operation but do reach Apple, so they stay open-world.
+                let expectedOpenWorld = ToolMetadataPolicy.webSessionTools.contains(mapping.tool)
+                #expect(
+                    tool.annotations.openWorldHint == expectedOpenWorld,
+                    "Expected openWorldHint=\(expectedOpenWorld) for local tool \(mapping.tool)"
+                )
             }
         }
         let promotedReorder = try #require(tools["promoted_reorder"])

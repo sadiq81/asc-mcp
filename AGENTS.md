@@ -49,13 +49,13 @@ Each company needs: `keyID`, `issuerID`, `privateKeyPath` (path to `.p8` file).
 
 **WorkerManager** (`Workers/MainWorker/WorkerManager.swift`) — central registry, routes tool calls by prefix.
 
-**Workers** (39 Swift worker classes; 35 `--workers` filter keys; 502 tools):
+**Workers** (39 Swift worker classes; 35 `--workers` filter keys; 503 tools):
 
 | Worker | Prefix | Tools | Domain |
 |--------|--------|-------|--------|
 | CompaniesWorker | `company_` | 3 | Multi-account management |
 | AuthWorker | `auth_` | 4 | JWT tokens |
-| AppsWorker | `apps_` | 10 | App listing, metadata, localizations, search keyword IDs |
+| AppsWorker | `apps_` | 11 | App creation (web session), listing, metadata, localizations, search keyword IDs |
 | AccessibilityWorker | `accessibility_` | 6 | App Store accessibility declarations |
 | WebhooksWorker | `webhooks_` | 11 | Webhook notifications, delivery diagnostics, receiver helpers |
 | XcodeCloudWorker | `xcode_cloud_` | 42 | Xcode Cloud products, workflow management, builds, artifacts, issues, test results, SCM |

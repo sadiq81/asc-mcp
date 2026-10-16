@@ -51,7 +51,7 @@ jobs:
           python3 Scripts/ci/mcp_stdio_smoke.py \
             --binary "$PWD/.build/release/asc-mcp" \
             --expected-version "$version" \
-            --expected-tool-count 502 \
+            --expected-tool-count 503 \
             --expected-prefix xcode_cloud_ \
             --expected-prefix-count 42 \
             --error-tool xcode_cloud_workflows_create
@@ -153,7 +153,7 @@ jobs:
           rpc mcp-smoke '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' > tools.txt
           count="$(grep -o '"inputSchema"' tools.txt | wc -l)"
           echo "::notice::Remote image served $count tools"
-          test "$count" -eq 502
+          test "$count" -eq 503
 
           status="$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' localhost:8080/mcp -d '{}')"
           echo "::notice::Wrong path returned HTTP $status"

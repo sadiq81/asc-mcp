@@ -6,14 +6,15 @@ import MCP
 @Suite("Worker Tool Definitions Tests")
 struct WorkerToolDefinitionsTests {
 
-    // MARK: - AppsWorker (10 tools)
+    // MARK: - AppsWorker (11 tools)
 
-    @Test("AppsWorker returns 10 tools with correct names")
+    @Test("AppsWorker returns 11 tools with correct names")
     func appsWorkerTools() async throws {
         let client = try await TestFactory.makeHTTPClient()
         let worker = AppsWorker(client: client)
         let tools = await worker.getTools()
-        #expect(tools.count == 10)
+        #expect(tools.count == 11)
+        #expect(Set(tools.map(\.name)).contains("apps_create"))
         let names = Set(tools.map(\.name))
         #expect(names.contains("apps_list"))
         #expect(names.contains("apps_get_details"))

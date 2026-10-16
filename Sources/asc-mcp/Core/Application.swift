@@ -43,7 +43,7 @@ public func runApplication(options: AppRuntimeOptions = AppRuntimeOptions()) asy
 
         After selecting a company, use:
         - auth_* — authentication
-        - apps_* — app management and metadata
+        - apps_* — app management and metadata; apps_create creates new apps (needs FASTLANE_SESSION)
         - accessibility_* — App Store accessibility declarations by device family
         - webhooks_* — webhook notifications, delivery diagnostics, signature verification, payload parsing, and triage
         - xcode_cloud_* — Xcode Cloud products, workflows, builds, artifacts, issues, test results, and SCM resources

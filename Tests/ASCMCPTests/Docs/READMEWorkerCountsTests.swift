@@ -13,7 +13,7 @@ struct READMEWorkerCountsTests {
         let snapshots = try await TestFactory.collectWorkerToolSnapshots()
         let totalTools = snapshots.reduce(0) { $0 + $1.count }
 
-        #expect(totalTools == 502)
+        #expect(totalTools == 503)
         #expect(snapshots.count == 35)
         #expect(readme.contains("**\(totalTools) tools**"))
         #expect(readme.contains("33 App Store tool domains + 2 core domains"))
@@ -62,9 +62,9 @@ struct READMEWorkerCountsTests {
         ])
         let appsOnly = try subsetCount(["company", "auth", "apps"])
 
-        #expect(releasePreparation == 99)
+        #expect(releasePreparation == 100)
         #expect(readme.contains("release preparation subset (\(releasePreparation) tools"))
-        #expect(testFlightReviewHelpers == 49)
+        #expect(testFlightReviewHelpers == 50)
         #expect(readme.contains("TestFlight review helpers can be loaded separately (\(testFlightReviewHelpers) tools)"))
         #expect(readme.contains("| Release workflow: `apps,builds,export_compliance,versions,reviews` | ~\(releaseWorkflow) |"))
         #expect(readme.contains("| Monetization: `apps,iap,subscriptions,pricing` | \(monetization) |"))
