@@ -65,6 +65,7 @@ public actor JWTService {
         } else if !company.privateKeyPath.isEmpty,
                   let keyData = FileManager.default.contents(atPath: company.privateKeyPath) {
             keyString = String(data: keyData, encoding: .utf8) ?? ""
+            Self.warnIfKeyFileIsShared(company.privateKeyPath)
         } else {
             throw ASCError.configuration(
                 "No private key provided for company '\(company.name)'. "
@@ -89,6 +90,17 @@ public actor JWTService {
         } catch {
             throw ASCError.configuration("Failed to load private key for company '\(company.name)': \(error.localizedDescription)")
         }
+    }
+
+    /// Warns on stderr when the key file can be read by group or other users (anything looser than 0600).
+    static func warnIfKeyFileIsShared(_ path: String) {
+        guard let permissions = (try? FileManager.default.attributesOfItem(atPath: path))?[.posixPermissions] as? Int,
+              permissions & 0o077 != 0 else {
+            return
+        }
+        let message = "asc-mcp warning: private key file is readable by other users "
+            + "(mode \(String(permissions, radix: 8))). Run: chmod 600 '\(path)'\n"
+        FileHandle.standardError.write(Data(message.utf8))
     }
 
     /// Decodes JWT token and extracts expiration time

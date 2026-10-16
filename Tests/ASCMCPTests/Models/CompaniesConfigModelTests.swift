@@ -13,12 +13,30 @@ struct CompaniesConfigModelTests {
         #expect(config.companies.count == 1)
     }
 
-    @Test func decodeWithCustomURL() throws {
+    @Test func decodeWithExplicitAppleURL() throws {
         let json = """
-        {"defaultURL":"https://custom.api.com","companies":[]}
+        {"defaultURL":"https://api.appstoreconnect.apple.com","companies":[]}
         """.data(using: .utf8)!
         let config = try JSONDecoder().decode(CompaniesConfig.self, from: json)
-        #expect(config.defaultURL == "https://custom.api.com")
+        #expect(config.defaultURL == "https://api.appstoreconnect.apple.com")
+    }
+
+    @Test(arguments: [
+        "https://custom.api.com",
+        "http://api.appstoreconnect.apple.com",
+        "https://api.appstoreconnect.apple.com.evil.test",
+        "https://api.appstoreconnect.apple.com:8443",
+        "https://user@api.appstoreconnect.apple.com",
+        "https://api.appstoreconnect.apple.com/",
+        "https://api.appstoreconnect.apple.com/proxy"
+    ])
+    func decodeRejectsNonAppleURL(_ url: String) {
+        let json = """
+        {"defaultURL":"\(url)","companies":[]}
+        """.data(using: .utf8)!
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(CompaniesConfig.self, from: json)
+        }
     }
 
     @Test func memberwiseInit() {
@@ -34,7 +52,7 @@ struct CompaniesConfigModelTests {
 
     @Test func encodeDecodeRoundtrip() throws {
         let companies = [Company(id: "1", name: "A", keyID: "k", issuerID: "i")]
-        let original = CompaniesConfig(companies: companies, defaultURL: "https://test.com")
+        let original = CompaniesConfig(companies: companies)
         let data = try JSONEncoder().encode(original)
         let decoded = try JSONDecoder().decode(CompaniesConfig.self, from: data)
         #expect(decoded.defaultURL == original.defaultURL)

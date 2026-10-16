@@ -5,6 +5,17 @@ import Testing
 
 @Suite("Tool Metadata Policy Tests")
 struct ToolMetadataPolicyTests {
+    @Test("read-only classification fails closed on write verbs in the name")
+    func readOnlyFailsClosedOnWriteVerbs() {
+        #expect(ToolMetadataPolicy.isReadOnly("apps_get_or_create") == false)
+        #expect(ToolMetadataPolicy.isReadOnly("builds_list_and_delete") == false)
+        #expect(ToolMetadataPolicy.isReadOnly("reviews_search_respond") == false)
+        #expect(ToolMetadataPolicy.isReadOnly("apps_list") == true)
+        #expect(ToolMetadataPolicy.isReadOnly("screenshots_get_set") == true)
+        #expect(ToolMetadataPolicy.isReadOnly("pre_release_list") == true)
+        #expect(ToolMetadataPolicy.isReadOnly("build_uploads_list_files") == true)
+    }
+
     @Test("all registered tools receive annotations and max result metadata")
     func allToolsReceiveAnnotationsAndMeta() async throws {
         let tools = try await TestFactory.collectAllWorkerTools().map(ToolMetadataPolicy.apply)

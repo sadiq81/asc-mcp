@@ -44,6 +44,10 @@ enum ToolMetadataPolicy {
         if toolName.hasPrefix("auth_") {
             return true
         }
+        // Fail closed: a name like "x_get_or_create" must not pass as read-only just because it contains "_get".
+        if !Set(toolName.split(separator: "_").map(String.init)).isDisjoint(with: writeVerbs) {
+            return false
+        }
         if toolName == "analytics_sales_report" ||
             toolName == "analytics_financial_report" ||
             toolName == "analytics_app_summary" ||
@@ -103,6 +107,15 @@ enum ToolMetadataPolicy {
         "webhooks_parse_payload",
         "webhooks_triage_event",
         "webhooks_verify_signature"
+    ]
+
+    /// Whole words in a tool name that mean it writes. "set" and "release" are left out because they are also nouns
+    /// in read-only names such as `screenshots_get_set` and `pre_release_list`.
+    private static let writeVerbs: Set<String> = [
+        "create", "update", "upload", "generate", "deactivate", "disable", "delete", "remove", "revoke",
+        "clear", "cancel", "add", "send", "submit", "invite", "register", "attach", "detach", "enable",
+        "start", "stop", "expire", "reorder", "replace", "commit", "reserve", "respond", "rerun",
+        "modify", "assign", "approve", "reject"
     ]
 
     private static let readOnlyMarkers = [
