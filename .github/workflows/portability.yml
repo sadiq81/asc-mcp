@@ -40,13 +40,14 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          set -o pipefail
-          swift test --disable-automatic-resolution --no-parallel 2>&1 | tee serial-test.log
-          code=${PIPESTATUS[0]}
+          set +e
+          swift test --disable-automatic-resolution --no-parallel > serial-test.log 2>&1
+          code=$?
+          tail -n 80 serial-test.log
           echo "::notice title=serial suite::exit $code; $(grep -E 'Test run with|tests? (passed|failed)' serial-test.log | tail -2 | tr '\n' ' ')"
           if [ $code -ne 0 ]; then
             bt="$(awk '/crashed:/{c=1} c&&/ at \/__w/{print; n++} n>=25{exit}' serial-test.log | cut -c1-260)"
-            last="$(grep -E '◇ Test .* started' serial-test.log | tail -3)"
+            last="$(grep -E '◇ (Test|Suite) .* started|✔ Suite' serial-test.log | tail -12)"
             echo "::error title=serial crash::$(printf '%s\n--- last started:\n%s' "$bt" "$last" | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')"
           fi
 
