@@ -92,6 +92,12 @@ enum ToolMetadataPolicy {
         "promoted_upload_image"
     ]
 
+    /// Local (non-OpenAPI) tools that still call Apple, through the App Store Connect web session.
+    /// They are open-world even though the manifest lists no Apple OpenAPI operation for them.
+    static let webSessionTools: Set<String> = [
+        "apps_create"
+    ]
+
     private static let explicitClosedWorldTools: Set<String> = [
         "auth_generate_token",
         "auth_refresh_token",

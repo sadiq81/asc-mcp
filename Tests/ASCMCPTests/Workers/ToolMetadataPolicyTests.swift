@@ -62,7 +62,12 @@ struct ToolMetadataPolicyTests {
                 #expect(tool.annotations.destructiveHint == true, "Expected destructive metadata for \(mapping.tool)")
             }
             if mapping.kind == .local {
-                #expect(tool.annotations.openWorldHint == false, "Expected closed-world metadata for \(mapping.tool)")
+                // Web-session tools have no OpenAPI operation but do reach Apple, so they stay open-world.
+                let expectedOpenWorld = ToolMetadataPolicy.webSessionTools.contains(mapping.tool)
+                #expect(
+                    tool.annotations.openWorldHint == expectedOpenWorld,
+                    "Expected openWorldHint=\(expectedOpenWorld) for local tool \(mapping.tool)"
+                )
             }
         }
         let promotedReorder = try #require(tools["promoted_reorder"])
