@@ -1,0 +1,8 @@
+.build
+.git
+.github
+.swiftpm
+*.p8
+*.pem
+*.key
+companies.json

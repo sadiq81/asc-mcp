@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public protocol HTTPTransport: Sendable {
     /// Executes an HTTP request and returns its body and HTTP response metadata.

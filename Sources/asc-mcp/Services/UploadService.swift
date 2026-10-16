@@ -1,6 +1,15 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+#if canImport(CryptoKit)
 import CryptoKit
+#else
+import Crypto
+#endif
+#if canImport(os)
 import os
+#endif
 
 private enum UploadChunkOutcome: Sendable {
     case success(Int, UploadPartReceipt)

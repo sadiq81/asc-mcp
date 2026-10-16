@@ -1,6 +1,8 @@
 import Foundation
 import MCP
+#if canImport(os)
 import os
+#endif
 
 // MARK: - Tool Handlers
 extension ScreenshotsWorker {

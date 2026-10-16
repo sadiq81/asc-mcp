@@ -6,7 +6,11 @@
 //
 
 import Foundation
+#if canImport(zlib)
 import zlib
+#else
+import CZlib
+#endif
 
 enum ReportDataLimits {
     static let maximumDecompressedBytes = 64 * 1_024 * 1_024

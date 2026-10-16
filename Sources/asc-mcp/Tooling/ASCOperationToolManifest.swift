@@ -628,10 +628,16 @@ struct ASCOperationManifestBundle: Sendable, Equatable {
                 "asc-mcp_asc-mcp.bundle",
                 isDirectory: true
             )
+            // SwiftPM names the resource directory `.bundle` on Apple platforms and `.resources` on Linux.
+            let linuxResourceDirectory = root.appendingPathComponent(
+                "asc-mcp_asc-mcp.resources",
+                isDirectory: true
+            )
             let candidates = [
                 root.appendingPathComponent("OperationManifest", isDirectory: true),
                 resourceBundle.appendingPathComponent("OperationManifest", isDirectory: true),
-                resourceBundle.appendingPathComponent("Contents/Resources/OperationManifest", isDirectory: true)
+                resourceBundle.appendingPathComponent("Contents/Resources/OperationManifest", isDirectory: true),
+                linuxResourceDirectory.appendingPathComponent("OperationManifest", isDirectory: true)
             ]
             for candidate in candidates {
                 let path = candidate.standardizedFileURL.path

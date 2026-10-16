@@ -1,6 +1,8 @@
 import Foundation
 import MCP
+#if canImport(os)
 import os
+#endif
 
 private let reviewAttachmentReadFields = "fileSize,fileName,sourceFileChecksum,assetDeliveryState,appStoreReviewDetail"
 private let reviewAttachmentResourceType = "appStoreReviewAttachments"
